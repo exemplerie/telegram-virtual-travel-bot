@@ -42,24 +42,25 @@ def create_sights(place):
         if not organizations:
             raise SightsError
         org = organizations[random.randint(0, len(organizations) - 1)]
-        print(org)
         org_point = org["geometry"]["coordinates"]
         org_point = "{0},{1}".format(org_point[0], org_point[1])
-        if org_point not in [x[0] for x in total_points.values()]:
-            total_points[len(total_points) + 1] = [org_point, org["properties"]["name"]]
+        if org_point not in [x['point'] for x in total_points.values()]:
+            org_dict = {'point': org_point, 'name': org["properties"]["name"],
+                        'id': org["properties"]["CompanyMetaData"]['id']}
+            total_points[len(total_points) + 1] = org_dict
             if "description" in org["properties"]:
-                total_points[len(total_points)].append(org["properties"]["description"])
+                total_points[len(total_points)]['address'] = org["properties"]["description"]
             elif "CompanyMetaData" in org["properties"]:
                 if org["properties"]["CompanyMetaData"].get("address"):
-                    total_points[len(total_points)].append(org["properties"]["CompanyMetaData"]["address"])
+                    total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
 
     map_params = {
         "l": 'sat,skl',
-        "pt": "~".join([str(x[1][0]) + ',pmlbl' + str(x[0]) for x in total_points.items()])
+        "pt": "~".join([str(x[1]['point']) + ',pmlbl' + str(x[0]) for x in total_points.items()])
     }
     map_api_server = "http://static-maps.yandex.ru/1.x/"
     response = requests.get(map_api_server, params=map_params)
-    print(response.url)
+    print(total_points)
     return response.url, total_points
 
 

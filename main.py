@@ -35,7 +35,7 @@ def find_sights(update, context):
     try:
         need_url, sights = geo.create_sights(topomym)
         description = '\n'.join(
-            [str(x[0]) + '  -   "' + x[1][1] + '"' + '\nАдрес:     ' + x[1][2] for x in sights.items()])
+            [str(x[0]) + '  -   "' + x[1]['name'] + '"' + '\nАдрес:     ' + x[1]['address'] for x in sights.items()])
         context.bot.send_photo(
             update.message.chat_id,
             need_url,
