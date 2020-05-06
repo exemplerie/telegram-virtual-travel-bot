@@ -4,6 +4,7 @@ import os
 import googleapiclient.discovery
 from my_project.translater import translate_text
 
+
 def search_video(city):
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
@@ -12,9 +13,10 @@ def search_video(city):
     DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
 
     youtube = googleapiclient.discovery.build(
-        api_service_name, api_version, developerKey = DEVELOPER_KEY)
+        api_service_name, api_version, developerKey=DEVELOPER_KEY)
 
-    channels = ['UCH4KR4_UxYIfQDTHaPeMWtg', 'UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ', 'UCGaOvAFinZ7BCN_FDmw74fQ']
+    channels = ['UCH4KR4_UxYIfQDTHaPeMWtg', 'UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ',
+                'UCGaOvAFinZ7BCN_FDmw74fQ']
     youtube_server = "https://www.youtube.com/watch?v="
     names_of_city = [city.lower(), translate_text(city).lower()]
     urls = []

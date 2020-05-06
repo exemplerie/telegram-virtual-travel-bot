@@ -19,4 +19,4 @@ def define_toponym(kind, country_name, iso=None):
         return False
     return True
 
-#print(define_toponym('cities', 'Кемерово', iso=''))
+# print(define_toponym('cities', 'Кемерово', iso=''))
