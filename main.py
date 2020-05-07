@@ -18,15 +18,16 @@ REQUEST_KWARGS = {
 
 def find_video(update, context):
     query = update.callback_query
+    query.answer()
     topomym = context.user_data['city']
     try:
         videos = video_module.search_video(topomym)
         keyboard = [[InlineKeyboardButton("Вернуться назад", callback_data='return')]]
         if int(query.data) > 0:
-            keyboard.insert(0, [InlineKeyboardButton("Предыдущее  видео", callback_data=str(int(query.data) - 1))])
+            keyboard.append([InlineKeyboardButton("Предыдущее  видео", callback_data=str(int(query.data) - 1))])
         if len(videos) > int(query.data) + 1:
             keyboard.append(
-                [InlineKeyboardButton("Следующее видео", callback_data=str(query.data))])
+                [InlineKeyboardButton("Следующее видео", callback_data=str(int(query.data) + 1))])
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             videos[int(query.data)],
@@ -35,7 +36,7 @@ def find_video(update, context):
     except Exception as error:
         print(error)
         query.edit_message_text(
-            f'По запросу "{update.message.text}" ничего не найдено. '
+            f'Извините, видео-экскурсий по городу {update.message.text} не найдено. '
         )
     return 6
 
@@ -123,23 +124,19 @@ def lets_go(update, context):
     keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='0'),
                  InlineKeyboardButton("Фото-экскурсия", callback_data='9')]]
     markup = InlineKeyboardMarkup(keyboard)
-    update.message.reply_text(
-        f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
-        'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
-        reply_markup=markup)
+    try:
+        update.message.reply_text(
+            f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
+            'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+            reply_markup=markup)
+    except Exception:
+        query = update.callback_query
+        query.answer()
+        query.edit_message_text(
+            f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
+            'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+            reply_markup=markup)
     return 5
-
-
-def button(update, context):
-    print(1)
-    query = update.callback_query
-    # find_video(update, context)
-
-    # CallbackQueries need to be answered, even if no notification to the user is needed
-    # Some clients may have trouble otherwise. See https://core.telegram.org/bots/api#callbackquery
-    query.answer()
-
-    query.edit_message_text(text="Selected option: {}".format(query.data))
 
 
 def stop(update, context):
@@ -171,10 +168,11 @@ def main():
             4: [MessageHandler(Filters.text('Все верно ✅'), lets_go, pass_user_data=True),
                 MessageHandler(Filters.text('Ввести заново ❌'), wait_data, pass_user_data=True),
                 ],
-            5: [CallbackQueryHandler(find_video, '0'),
-                CallbackQueryHandler(find_sights, '9')],
-            6: [CallbackQueryHandler(lets_go, 'return'),
-                CallbackQueryHandler(find_video, pattern='\d')]
+            5: [CallbackQueryHandler(find_video, pattern='0', pass_user_data=True),
+                CallbackQueryHandler(find_sights, pattern='9', pass_user_data=True)],
+            6: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
+                CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True),
+                ]
         },
 
         fallbacks=[CommandHandler("stop", stop)]

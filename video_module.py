@@ -10,7 +10,7 @@ def search_video(city):
 
     api_service_name = "youtube"
     api_version = "v3"
-    DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
+    DEVELOPER_KEY = "AIzaSyCt0LbvrjuKTVd7VCYlwC8N9fdvru-IJH4"
 
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, developerKey=DEVELOPER_KEY)
