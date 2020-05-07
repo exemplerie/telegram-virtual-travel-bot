@@ -26,25 +26,32 @@ def create_sights(place):
 
     sights = ['достопримечательность', 'памятник', 'музей', 'галерея']
     total_points = {}
+    all_points = []
 
-    while len(total_points) < 5:
-        search_params = {
-            "apikey": api_key,
-            "text": random.choice(sights),
-            "lang": "ru_RU",
-            "ll": address_ll,
-            "type": "biz"
-        }
+    search_params = {
+        "apikey": api_key,
+        "lang": "ru_RU",
+        "ll": address_ll,
+        "type": "biz"
+    }
+
+    for kind_sights in range(len(sights)):
+        search_params["text"] = sights[kind_sights]
         response = requests.get(search_api_server, params=search_params)
         json_response = response.json()
-        # print(json_response)
         organizations = json_response.get("features")
         if not organizations:
-            raise SightsError
-        org = organizations[random.randint(0, len(organizations) - 1)]
+            continue
+        all_points.extend(organizations)
+
+    if not all_points:
+        raise SightsError
+
+    while len(total_points) < 5 and len(total_points) < len(all_points):
+        org = random.choice(all_points)
         org_point = org["geometry"]["coordinates"]
         org_point = "{0},{1}".format(org_point[0], org_point[1])
-        if org_point not in [x['point'] for x in total_points.values()]:
+        if not total_points or org_point not in [x.get('point') for x in total_points.values()]:
             org_dict = {'point': org_point, 'name': org["properties"]["name"],
                         'id': org["properties"]["CompanyMetaData"]['id']}
             total_points[len(total_points) + 1] = org_dict
@@ -106,3 +113,6 @@ def static_search(coords, spn):  # создаем карту
     response = requests.get(map_api_server, params=map_params)
     check_response(response)
     return response.url
+
+
+print(create_sights('Ереван'))
