@@ -79,13 +79,14 @@ def alone_sight(update, context):
     query = update.callback_query
     query.answer()
     place = context.user_data["sights"][int(query.data)]
-    server = 'https://yandex.ru/profile/'
 
     query.edit_message_text(
         f'Направляемся в пункт {query.data}...'
     )
+    url_place = 'https://yandex.ru/profile/' + place["id"]
+    caption = f'"{place["name"]}"\n\nНаходится по адресу: {place["address"]}\n\nПодробнее о месте: {url_place}'
     query.message.reply_photo(
-        photo=server + place["id"], caption=f'"{place["name"]}"')
+        photo=url_place, caption=caption)
     keyboard = [[]]
     keyboard.insert(0, [InlineKeyboardButton('Вернуться назад', callback_data='return')])
     for button in range(1, 6):

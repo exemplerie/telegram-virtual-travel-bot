@@ -55,11 +55,10 @@ def create_sights(place):
             org_dict = {'point': org_point, 'name': org["properties"]["name"],
                         'id': org["properties"]["CompanyMetaData"]['id']}
             total_points[len(total_points) + 1] = org_dict
-            if "description" in org["properties"]:
+            if "CompanyMetaData" in org["properties"] and org["properties"]["CompanyMetaData"].get("address"):
+                total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
+            elif "description" in org["properties"]:
                 total_points[len(total_points)]['address'] = org["properties"]["description"]
-            elif "CompanyMetaData" in org["properties"]:
-                if org["properties"]["CompanyMetaData"].get("address"):
-                    total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
 
     map_params = {
         "l": 'sat,skl',
@@ -113,6 +112,3 @@ def static_search(coords, spn):  # создаем карту
     response = requests.get(map_api_server, params=map_params)
     check_response(response)
     return response.url
-
-
-print(create_sights('Ереван'))
