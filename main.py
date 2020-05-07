@@ -85,8 +85,11 @@ def alone_sight(update, context):
     )
     url_place = 'https://yandex.ru/profile/' + place["id"]
     caption = f'"{place["name"]}"\n\nНаходится по адресу: {place["address"]}\n\nПодробнее о месте: {url_place}'
-    query.message.reply_photo(
+    try:
+        query.message.reply_photo(
         photo=url_place, caption=caption)
+    except Exception:
+        query.message.reply_text(caption)
     keyboard = [[]]
     keyboard.insert(0, [InlineKeyboardButton('Вернуться назад', callback_data='return')])
     for button in range(1, 6):
@@ -109,38 +112,56 @@ def start_command(update, context):
     return 1
 
 
-def pre_flight(update, context):
-    reply_keyboard = [['да', 'нет']]
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    update.message.reply_text(
-        'Вы уже определитесь с пунктом назначения?\n',
-        reply_markup=markup
-    )
-    return 2
-
-
 def wait_data(update, context):
     context.user_data['country'] = None
     context.user_data['city'] = None
 
+    reply_keyboard = [['Выбрать случайную страну 🏞']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+    try:
+        update.message.reply_text(
+            'Сначала нужно определиться с пунктом назначения!\n'
+            'Пожалуйста, введите желаемую страну:', reply_markup=markup
+        )
+    except Exception:
+        query = update.callback_query
+        query.answer()
+        query.edit_message_text('Возвращаемся!')
+        query.message.reply_text('Пожалуйста, введите желаемую страну:', reply_markup=markup)
+
+    return 2
+
+
+def random_place(update, context):
+    if not context.user_data["country"]:
+        random_country = geohelper.randon_toponym('countries')
+    elif not context.user_data["city"]:
+        random_country = geohelper.randon_toponym('cities', iso=context.user_data['iso'])
+    reply_keyboard = [[random_country, 'Поменять 🔄']]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
-        'Пожалуйста, введите желаемую страну:\n'
+        f'Что насчет... {random_country}?', reply_markup=markup
     )
     return 3
 
 
 def choose_place(update, context):
     if not context.user_data["country"]:
-        if not geohelper.define_toponym('countries', update.message.text):
+        iso = geohelper.define_toponym('countries', update.message.text)
+        if not iso:
             update.message.reply_text(
                 'Извините, данная страна не найдена. Проверьте правильность написания и попробуйте еще раз:\n')
         else:
+            reply_keyboard = [['Выбрать случайный город 🏙']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            context.user_data['iso'] = iso
             context.user_data['country'] = update.message.text
             update.message.reply_text(
-                'Принято, теперь введите город:\n')
+                'Принято, теперь введите город:\n', reply_markup=markup)
         return 3
     elif not context.user_data["city"]:
-        if not geohelper.define_toponym('cities', update.message.text):
+        if not geohelper.define_toponym('cities', update.message.text, iso=context.user_data["iso"]):
             update.message.reply_text(
                 'Извините, в желаемой стране данный город не найден. Проверьте правильность написания и попробуйте еще раз:\n')
             return 3
@@ -149,14 +170,15 @@ def choose_place(update, context):
         reply_keyboard = [['Все верно ✅'], ['Ввести заново ❌']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
         update.message.reply_text(
-            f'Отлично! Проверьте данные на билете: {context.user_data["country"], context.user_data["city"]}.',
+            f'Отлично! Проверьте данные на билете: {context.user_data["country"]}, {context.user_data["city"]}.',
             reply_markup=markup)
     return 4
 
 
 def lets_go(update, context):
-    keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='0'),
-                 InlineKeyboardButton("Фото-экскурсия", callback_data='9')]]
+    keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='video'),
+                 InlineKeyboardButton("Фото-экскурсия", callback_data='photo')],
+                [InlineKeyboardButton("Поменять пункт назначения", callback_data='return')]]
     markup = InlineKeyboardMarkup(keyboard)
     try:
         update.message.reply_text(
@@ -192,18 +214,21 @@ def main():
         entry_points=[CommandHandler('start', start_command)],
 
         states={
-            1: [MessageHandler(Filters.text, pre_flight, pass_user_data=True),
+            1: [MessageHandler(Filters.text, wait_data, pass_user_data=True),
                 ],
-            2: [MessageHandler(Filters.text('да'), wait_data, pass_user_data=True),
-                MessageHandler(Filters.text('нет'), stop),
+            2: [MessageHandler(Filters.text('Выбрать случайную страну 🏞'), random_place),
+                MessageHandler(Filters.text, choose_place, pass_user_data=True)
                 ],
-            3: [MessageHandler(Filters.text, choose_place, pass_user_data=True)
+            3: [MessageHandler(Filters.text('Поменять 🔄'), random_place),
+                MessageHandler(Filters.text('Выбрать случайный город 🏙'), random_place),
+                MessageHandler(Filters.text, choose_place, pass_user_data=True)
                 ],
             4: [MessageHandler(Filters.text('Все верно ✅'), lets_go, pass_user_data=True),
                 MessageHandler(Filters.text('Ввести заново ❌'), wait_data, pass_user_data=True),
                 ],
-            5: [CallbackQueryHandler(find_video, pattern='0', pass_user_data=True),
-                CallbackQueryHandler(find_sights, pattern='9', pass_user_data=True)],
+            5: [CallbackQueryHandler(wait_data, pattern='return', pass_user_data=True),
+                CallbackQueryHandler(find_video, pattern='video', pass_user_data=True),
+                CallbackQueryHandler(find_sights, pattern='photo', pass_user_data=True)],
             6: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
                 CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True),
                 ],

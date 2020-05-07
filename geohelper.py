@@ -1,15 +1,16 @@
 import requests
+import random
 
 API_SERVER = "http://geohelper.info/api/v1/"
 KEY = "1ohtvK6u4eHhy9sWmUoU2ccCMBsHZl4S"
 
 
-def define_toponym(kind, country_name, iso=None):
+def define_toponym(kind, toponym_name, iso=None):
     server_api_search = API_SERVER + kind
     params = {
         "apiKey": KEY,
         "locale[lang]": "ru",
-        'filter[name]': country_name
+        'filter[name]': toponym_name
     }
     if iso:
         params["filter[countryIso]"] = iso
@@ -17,6 +18,24 @@ def define_toponym(kind, country_name, iso=None):
     json_response = response.json()
     if not json_response["success"] or not json_response["result"]:
         return False
-    return True
+    if not iso:
+        return json_response["result"][0]["iso"]
+    else:
+        return True
 
-# print(define_toponym('cities', 'Кемерово', iso=''))
+
+def randon_toponym(kind, iso=None):
+    server_api_search = API_SERVER + kind
+    params = {
+        "apiKey": KEY,
+        "locale[lang]": "ru",
+        "localityType[code]": 'city',
+        "pagination[limit]": 50
+    }
+    if iso:
+        params["filter[countryIso]"] = iso
+        params["order[by]"] = 'population'
+        params['order[dir]'] = 'desc'
+    response = requests.get(server_api_search, params=params)
+    json_response = response.json()
+    return random.choice(json_response["result"])["name"]
