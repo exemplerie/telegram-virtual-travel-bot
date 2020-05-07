@@ -42,24 +42,57 @@ def find_video(update, context):
 
 
 def find_sights(update, context):
+    query = update.callback_query
+    query.answer()
     topomym = context.user_data['city']
     try:
         need_url, sights = yandex_maps.create_sights(topomym)
+        context.user_data['sights'] = sights
         description = '\n'.join(
-            [str(x[0]) + '  -   "' + x[1]['name'] + '"' + '\nАдрес:     ' + x[1]['address'] for x in sights.items()])
-        context.bot.send_photo(
-            update.message.chat_id,
-            need_url,
-            caption=description
+            [str(x[0]) + '  -   "' + x[1]['name'] + '"\n' for x in sights.items()])
+
+        keyboard = [[]]
+        for button in range(1, 6):
+            keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
+        markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(
+            'Посмотрим...'
         )
+        query.message.reply_photo(
+            photo=need_url, caption=description)
+        query.message.reply_text('Вот и наша экскурсионная карта!\n'
+                                 'Какое из мест хотите посетить?', reply_markup=markup)
     except yandex_maps.ToponymError:
-        update.message.reply_text(
+        query.edit_message_text(
             f'По запросу "{update.message.text}" ничего не найдено. '
         )
     except yandex_maps.SightsError:
-        update.message.reply_text(
+        query.edit_message_text(
             f'Интересных мест в данном городе маловато. Попробуйте выбрать другой!'
         )
+    except Exception as e:
+        print(e)
+    return 7
+
+
+def alone_sight(update, context):
+    query = update.callback_query
+    query.answer()
+    place = context.user_data["sights"][int(query.data)]
+    server = 'https://yandex.ru/profile/'
+
+    query.edit_message_text(
+        f'Направляемся в пункт {query.data}...'
+    )
+    query.message.reply_photo(
+        photo=server + place["id"], caption=f'"{place["name"]}"')
+    keyboard = [[]]
+    keyboard.insert(0, [InlineKeyboardButton('Вернуться назад', callback_data='return')])
+    for button in range(1, 6):
+        if str(button) != query.data:
+            keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
+    markup = InlineKeyboardMarkup(keyboard)
+    query.message.reply_text('Куда едем дальше?', reply_markup=markup)
 
 
 def start_command(update, context):
@@ -172,6 +205,9 @@ def main():
                 CallbackQueryHandler(find_sights, pattern='9', pass_user_data=True)],
             6: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
                 CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True),
+                ],
+            7: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
+                CallbackQueryHandler(alone_sight, pattern='\d', pass_user_data=True),
                 ]
         },
 
