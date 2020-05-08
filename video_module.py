@@ -44,4 +44,4 @@ def search_video(city):
     return urls
 
 
-#print(search_video('осло'))
+print(search_video('осло'))

@@ -10,12 +10,12 @@ def randon_toponym(kind, country=None):
             countries = sorted(list(data.items()), key=lambda i: len(i[1]), reverse=True)
             return random.choice(countries[:15])[0]
         else:
-            choice = random.choice([str(x) for x in data[country]])
-            print(choice)
-            while not define_toponym('cities', choice, country=country):
+            choice = None
+            sights = None
+            while not sights:
                 choice = random.choice([str(x) for x in data[country]])
-                print(choice)
-            return choice
+                sights = define_toponym('cities', choice, country=country)
+            return choice, sights
 
 
 def define_toponym(kind, toponym, country=None):
@@ -26,7 +26,7 @@ def define_toponym(kind, toponym, country=None):
         else:
             if toponym in [str(x) for x in data[country]]:
                 try:
-                    yandex_maps.create_sights(country + ',' + toponym)
+                    sights = yandex_maps.create_sights(country + ',' + toponym)
                 except Exception as e:
-                    return False
-                return True
+                    return None
+                return sights

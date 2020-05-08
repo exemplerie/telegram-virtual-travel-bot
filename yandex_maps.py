@@ -65,8 +65,6 @@ def create_sights(place):
             elif "description" in org["properties"]:
                 total_points[len(total_points)]['address'] = org["properties"]["description"]
 
-    print(total_points)
-
     map_params = {
         "l": 'sat,skl',
         "pt": "~".join([str(x[1]['point']) + ',pmlbl' + str(x[0]) for x in total_points.items()])
@@ -88,8 +86,8 @@ def create_map(place):  # загружаем в файл
         height = abs(float(upper_corner[1]) - float(lower_corner[1])) / 2.0
         need_spn = f"{width},{height}"
 
-        map = static_search(toponym_point, need_spn)
-        return map
+        photo_map = static_search(toponym_point, need_spn)
+        return photo_map
     except Exception:
         return 'error'
 
