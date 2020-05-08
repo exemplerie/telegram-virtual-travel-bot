@@ -38,6 +38,7 @@ def create_sights(place):
     for kind_sights in range(len(sights)):
         search_params["text"] = sights[kind_sights]
         response = requests.get(search_api_server, params=search_params)
+        print(response.url)
         json_response = response.json()
         organizations = json_response.get("features")
         if not organizations:
@@ -47,8 +48,12 @@ def create_sights(place):
     if not all_points:
         raise SightsError
 
-    while len(total_points) < 5 and len(total_points) < len(all_points):
-        org = random.choice(all_points)
+    if len(all_points) <= 5:
+        all_points = all_points
+    else:
+        all_points = random.choices(all_points, k=5)
+
+    for org in all_points:
         org_point = org["geometry"]["coordinates"]
         org_point = "{0},{1}".format(org_point[0], org_point[1])
         if not total_points or org_point not in [x.get('point') for x in total_points.values()]:
@@ -59,6 +64,8 @@ def create_sights(place):
                 total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
             elif "description" in org["properties"]:
                 total_points[len(total_points)]['address'] = org["properties"]["description"]
+
+    print(total_points)
 
     map_params = {
         "l": 'sat,skl',

@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRe
 from my_project import yandex_maps, video_module, geohelper
 
 REQUEST_KWARGS = {
-    'proxy_url': 'socks5://47.241.16.16:1080',  # Адрес прокси сервера
+    'proxy_url': 'socks5://80.240.24.119:31444',  # Адрес прокси сервера
     # Опционально, если требуется аутентификация:
     'urllib3_proxy_kwargs': {
         'assert_hostname': 'False',
@@ -20,9 +20,13 @@ def find_video(update, context):
     query = update.callback_query
     query.answer()
     topomym = context.user_data['city']
+    keyboard = [[InlineKeyboardButton("Вернуться назад", callback_data='return')]]
     try:
         videos = video_module.search_video(topomym)
-        keyboard = [[InlineKeyboardButton("Вернуться назад", callback_data='return')]]
+        if not videos:
+            query.edit_message_text(
+                f'Извините, видео-экскурсий по городу {update.message.text} не найдено. '
+            )
         if int(query.data) > 0:
             keyboard.append([InlineKeyboardButton("Предыдущее  видео", callback_data=str(int(query.data) - 1))])
         if len(videos) > int(query.data) + 1:
@@ -34,10 +38,10 @@ def find_video(update, context):
             reply_markup=markup
         )
     except Exception as error:
-        print(error)
+
+        markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
-            f'Извините, видео-экскурсий по городу {update.message.text} не найдено. '
-        )
+            'Извините, проблемы с соединением на сервере.', reply_markup=markup)
     return 6
 
 
@@ -52,7 +56,7 @@ def find_sights(update, context):
             [str(x[0]) + '  -   "' + x[1]['name'] + '"\n' for x in sights.items()])
 
         keyboard = [[]]
-        for button in range(1, 6):
+        for button in range(1,len(sights) + 1):
             keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
@@ -87,12 +91,12 @@ def alone_sight(update, context):
     caption = f'"{place["name"]}"\n\nНаходится по адресу: {place["address"]}\n\nПодробнее о месте: {url_place}'
     try:
         query.message.reply_photo(
-        photo=url_place, caption=caption)
+            photo=url_place, caption=caption)
     except Exception:
         query.message.reply_text(caption)
     keyboard = [[]]
-    keyboard.insert(0, [InlineKeyboardButton('Вернуться назад', callback_data='return')])
-    for button in range(1, 6):
+    keyboard.insert(0, [[InlineKeyboardButton('Вернуться назад', callback_data='return')]])
+    for button in range(1,len(context.user_data["sights"]) + 1):
         if str(button) != query.data:
             keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
     markup = InlineKeyboardMarkup(keyboard)
@@ -106,7 +110,7 @@ def start_command(update, context):
         'Привет! 👋\n'
         'Я - бот виртуальных путешествий. Все мы сейчас в непростой ситуации, '
         'когда обычные путешествия стали невозможными 😢.\n' +
-        'Я помогу вам восполнить недостающие ощущения и открою дверь в мир онлайн-путешествий🌎️!\n',
+        'Я помогу вам восполнить недостающие ощущения и открою дверь в мир онлайн-путешествий 🌎️!\n',
         reply_markup=markup
     )
     return 1
@@ -135,33 +139,31 @@ def wait_data(update, context):
 
 def random_place(update, context):
     if not context.user_data["country"]:
-        random_country = geohelper.randon_toponym('countries')
+        generated_place = geohelper.randon_toponym('countries')
     elif not context.user_data["city"]:
-        random_country = geohelper.randon_toponym('cities', iso=context.user_data['iso'])
-    reply_keyboard = [[random_country, 'Поменять 🔄']]
+        generated_place = geohelper.randon_toponym('cities', country=context.user_data["country"])
+    reply_keyboard = [[generated_place, 'Поменять 🔄']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
-        f'Что насчет... {random_country}?', reply_markup=markup
+        f'Что насчет... {generated_place}?', reply_markup=markup
     )
     return 3
 
 
 def choose_place(update, context):
     if not context.user_data["country"]:
-        iso = geohelper.define_toponym('countries', update.message.text)
-        if not iso:
+        if not geohelper.define_toponym('countries', update.message.text):
             update.message.reply_text(
                 'Извините, данная страна не найдена. Проверьте правильность написания и попробуйте еще раз:\n')
         else:
             reply_keyboard = [['Выбрать случайный город 🏙']]
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            context.user_data['iso'] = iso
             context.user_data['country'] = update.message.text
             update.message.reply_text(
                 'Принято, теперь введите город:\n', reply_markup=markup)
         return 3
     elif not context.user_data["city"]:
-        if not geohelper.define_toponym('cities', update.message.text, iso=context.user_data["iso"]):
+        if not geohelper.define_toponym('cities', update.message.text, country=context.user_data["country"]):
             update.message.reply_text(
                 'Извините, в желаемой стране данный город не найден. Проверьте правильность написания и попробуйте еще раз:\n')
             return 3
@@ -197,7 +199,7 @@ def lets_go(update, context):
 
 def stop(update, context):
     update.message.reply_text(
-        'Очень жаль!')
+        'Спасибо за чудесное путшествие! Не забудьте свой багаж и возвращайтесь в любое время!')
     return ConversationHandler.END
 
 
