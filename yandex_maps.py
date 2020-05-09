@@ -6,12 +6,6 @@ class SightsError(Exception):
     pass
 
 
-def check_response(this_response):
-    if not this_response:
-        print(1)
-        raise Exception
-
-
 def create_sights(place):
     toponym = geocode_search(place)
     toponym_point = [float(x) for x in toponym["Point"]["pos"].split(" ")]
@@ -98,9 +92,6 @@ def geocode_search(toponym_to_find):  # находим место
         "format": "json"}
     response = requests.get(geocoder_api_server, params=geocoder_params)
     json_response = response.json()
-    if not json_response["response"]["GeoObjectCollection"][
-        "featureMember"]:
-        raise ToponymError("По вашему запросу ничего не найдено!")
     return json_response["response"]["GeoObjectCollection"][
         "featureMember"][0]["GeoObject"]
 
@@ -113,5 +104,4 @@ def static_search(coords, spn):  # создаем карту
         "l": 'sat,skl'
     }
     response = requests.get(map_api_server, params=map_params)
-    check_response(response)
     return response.url

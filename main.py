@@ -1,4 +1,3 @@
-# Импортируем необходимые классы.
 from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
@@ -14,6 +13,7 @@ REQUEST_KWARGS = {
     #     'password': 'password'
     # }
 }
+BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_TRIP = range(7)
 
 
 def start_command(update, context):
@@ -26,7 +26,7 @@ def start_command(update, context):
         'Я помогу вам восполнить недостающие ощущения и открою дверь в мир онлайн-путешествий 🌎️!\n',
         reply_markup=markup
     )
-    return 1
+    return BEGINNING
 
 
 def wait_data(update, context):
@@ -49,7 +49,7 @@ def wait_data(update, context):
         query.edit_message_text('Возвращаемся!')
         query.message.reply_text('Пожалуйста, введите желаемую страну:', reply_markup=markup)
 
-    return 2
+    return NEW_DATA
 
 
 def random_place(update, context):
@@ -67,7 +67,7 @@ def random_place(update, context):
     update.message.reply_text(
         f'Что насчет... {generated_place}?', reply_markup=markup
     )
-    return 3
+    return PLACE_CHOICE
 
 
 def choose_place(update, context):
@@ -82,14 +82,14 @@ def choose_place(update, context):
                 context.user_data['country'] = update.message.text
                 update.message.reply_text(
                     'Принято, теперь введите город:\n', reply_markup=markup)
-            return 3
+            return PLACE_CHOICE
         else:
             if not context.user_data['city'] or context.user_data['city'] != update.message.text:
                 sights = geohelper.define_toponym('cities', update.message.text, country=context.user_data["country"])
                 if not sights:
                     update.message.reply_text(
                         'Извините, в желаемой стране данный город не найден. Проверьте правильность написания и попробуйте еще раз:\n')
-                    return 3
+                    return PLACE_CHOICE
                 else:
                     context.user_data['city'] = update.message.text
                     context.user_data['sights'] = sights
@@ -107,10 +107,10 @@ def choose_place(update, context):
     except yandex_maps.SightsError:
         update.message.reply_text(
             'Извините, в данном городе я не нашел ничего интересного! Выберите, пожалуйста, другой.\n')
-        return 3
+        return PLACE_CHOICE
     except (ConnectionError, TimeoutError):
         stop(update, context, error=True)
-    return 4
+    return CONFIRMATION
 
 
 def lets_go(update, context):
@@ -130,7 +130,7 @@ def lets_go(update, context):
             f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
             'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
             reply_markup=markup)
-    return 5
+    return TRIP_CHOICE
 
 
 def find_video(update, context):
@@ -163,7 +163,7 @@ def find_video(update, context):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             'Извините, проблемы с соединением на сервере.', reply_markup=markup)
-    return 6
+    return VIDEO_TRIP
 
 
 def find_sights(update, context):
@@ -198,7 +198,9 @@ def find_sights(update, context):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
                                 reply_markup=markup)
-    return 7
+    except Exception as e:
+        print(e, type(e))
+    return PHOTO_TRIP
 
 
 def generate_sights_map(context):
@@ -260,27 +262,27 @@ def main():
         entry_points=[CommandHandler('start', start_command)],
 
         states={
-            1: [MessageHandler(Filters.text, wait_data, pass_user_data=True),
-                ],
-            2: [MessageHandler(Filters.regex(r'(лучайн)'), random_place, pass_user_data=True),
-                MessageHandler(Filters.text, choose_place, pass_user_data=True)
-                ],
-            3: [MessageHandler(Filters.regex(r'(оменять|случайн)'), random_place, pass_user_data=True),
-                MessageHandler(Filters.text, choose_place, pass_user_data=True)
-                ],
-            4: [MessageHandler(Filters.regex(r'(Верно|Да|верно|да)'), lets_go, pass_user_data=True),
-                MessageHandler(Filters.text(r'(Заново|Нет|заново|нет)'), wait_data, pass_user_data=True),
-                ],
-            5: [CallbackQueryHandler(wait_data, pattern='return', pass_user_data=True),
-                CallbackQueryHandler(find_video, pattern='0', pass_user_data=True),
-                CallbackQueryHandler(find_sights, pattern='photo', pass_user_data=True)],
-            6: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
-                CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True),
-                ],
-            7: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
-                CallbackQueryHandler(find_sights, pattern='new', pass_user_data=True),
-                CallbackQueryHandler(alone_sight, pattern='\d', pass_user_data=True),
-                ]
+            BEGINNING: [MessageHandler(Filters.text, wait_data, pass_user_data=True),
+                        ],
+            NEW_DATA: [MessageHandler(Filters.regex(r'(лучайн)'), random_place, pass_user_data=True),
+                       MessageHandler(Filters.text, choose_place, pass_user_data=True)
+                       ],
+            PLACE_CHOICE: [MessageHandler(Filters.regex(r'(оменять|случайн)'), random_place, pass_user_data=True),
+                           MessageHandler(Filters.text, choose_place, pass_user_data=True)
+                           ],
+            CONFIRMATION: [MessageHandler(Filters.regex(r'(Верно|Да|верно|да)'), lets_go, pass_user_data=True),
+                           MessageHandler(Filters.text(r'(Заново|Нет|заново|нет)'), wait_data, pass_user_data=True),
+                           ],
+            TRIP_CHOICE: [CallbackQueryHandler(wait_data, pattern='return', pass_user_data=True),
+                          CallbackQueryHandler(find_video, pattern='0', pass_user_data=True),
+                          CallbackQueryHandler(find_sights, pattern='photo', pass_user_data=True)],
+            VIDEO_TRIP: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
+                         CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True),
+                         ],
+            PHOTO_TRIP: [CallbackQueryHandler(lets_go, pattern='return', pass_user_data=True),
+                         CallbackQueryHandler(find_sights, pattern='new', pass_user_data=True),
+                         CallbackQueryHandler(alone_sight, pattern='\d', pass_user_data=True),
+                         ]
         },
 
         fallbacks=[CommandHandler("stop", stop)]
