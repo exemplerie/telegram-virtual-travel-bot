@@ -49,21 +49,23 @@ def create_sights(place):
         raise SightsError
 
     if len(all_points) <= 5:
-        all_points = all_points
+        need_points = all_points
     else:
-        all_points = random.choices(all_points, k=5)
+        need_points = random.choices(all_points, k=5)
+        while len(set([x["properties"]["name"] for x in need_points])) < 5:
+            need_points = random.choices(all_points, k=5)
 
-    for org in all_points:
+    for org in need_points:
         org_point = org["geometry"]["coordinates"]
         org_point = "{0},{1}".format(org_point[0], org_point[1])
-        if not total_points or org_point not in [x.get('point') for x in total_points.values()]:
-            org_dict = {'point': org_point, 'name': org["properties"]["name"],
-                        'id': org["properties"]["CompanyMetaData"]['id']}
-            total_points[len(total_points) + 1] = org_dict
-            if "CompanyMetaData" in org["properties"] and org["properties"]["CompanyMetaData"].get("address"):
-                total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
-            elif "description" in org["properties"]:
-                total_points[len(total_points)]['address'] = org["properties"]["description"]
+        org_dict = {'point': org_point, 'name': org["properties"]["name"],
+                    'id': org["properties"]["CompanyMetaData"]['id'],
+                    'url': org["properties"]["CompanyMetaData"].get('url')}
+        total_points[len(total_points) + 1] = org_dict
+        if "CompanyMetaData" in org["properties"] and org["properties"]["CompanyMetaData"].get("address"):
+            total_points[len(total_points)]['address'] = org["properties"]["CompanyMetaData"]["address"]
+        elif "description" in org["properties"]:
+            total_points[len(total_points)]['address'] = org["properties"]["description"]
 
     map_params = {
         "l": 'sat,skl',

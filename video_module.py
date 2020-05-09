@@ -23,8 +23,6 @@ def search_video(city, country):
     else:
         channels.extend(['UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ', 'UCGaOvAFinZ7BCN_FDmw74fQ'])
 
-    print(channels)
-
     youtube_server = "https://www.youtube.com/watch?v="
     urls = []
 
@@ -50,5 +48,3 @@ def search_video(city, country):
                 urls.append(youtube_server + id)
 
     return urls
-
-# print(search_video('осло'))

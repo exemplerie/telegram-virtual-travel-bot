@@ -163,7 +163,7 @@ def find_sights(update, context):
     if query.data == 'new':
         if len(context.user_data['sights'][1]) < 5:
             query.message.reply_text(
-                f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено"')
+                f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено.')
         else:
             generate_sights_map(context)
     try:
@@ -207,7 +207,10 @@ def alone_sight(update, context):
         f'Направляемся в пункт {query.data}...'
     )
     url_place = 'https://yandex.ru/profile/' + place["id"]
-    caption = f'"{place["name"]}"\n\nНаходится по адресу: {place["address"]}\n\nПодробнее о месте: {url_place}'
+    info = place.get('url')
+    if not info:
+        info = url_place
+    caption = f'"{place["name"]}"\n\nНаходится по адресу: {place["address"]}\n\nПодробнее о месте: {info}'
     try:
         query.message.reply_photo(
             photo=url_place, caption=caption)
