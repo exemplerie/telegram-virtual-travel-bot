@@ -2,10 +2,6 @@ import requests
 import random
 
 
-class ToponymError(Exception):
-    pass
-
-
 class SightsError(Exception):
     pass
 

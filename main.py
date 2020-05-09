@@ -56,9 +56,12 @@ def random_place(update, context):
     if not context.user_data["country"]:
         generated_place = geohelper.randon_toponym('countries')
     else:
-        generated_place, sights = geohelper.randon_toponym('cities', country=context.user_data["country"])
-        context.user_data['city'] = generated_place
-        context.user_data['sights'] = sights
+        try:
+            generated_place, sights = geohelper.randon_toponym('cities', country=context.user_data["country"])
+            context.user_data['city'] = generated_place
+            context.user_data['sights'] = sights
+        except (ConnectionError, TimeoutError):
+            stop(update, context, error=True)
     reply_keyboard = [[generated_place, 'Поменять 🔄']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
@@ -68,38 +71,45 @@ def random_place(update, context):
 
 
 def choose_place(update, context):
-    if not context.user_data["country"]:
-        if not geohelper.define_toponym('countries', update.message.text):
-            update.message.reply_text(
-                'Извините, данная страна не найдена. Проверьте правильность написания и попробуйте еще раз:\n')
-        else:
-            reply_keyboard = [['Выбрать случайный город 🏙']]
-            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-            context.user_data['country'] = update.message.text
-            update.message.reply_text(
-                'Принято, теперь введите город:\n', reply_markup=markup)
-        return 3
-    else:
-        if not context.user_data['city'] or context.user_data['city'] != update.message.text:
-            sights = geohelper.define_toponym('cities', update.message.text, country=context.user_data["country"])
-            if not sights:
+    try:
+        if not context.user_data["country"]:
+            if not geohelper.define_toponym('countries', update.message.text):
                 update.message.reply_text(
-                    'Извините, в желаемой стране данный город не найден. Проверьте правильность написания и попробуйте еще раз:\n')
-                return 3
+                    'Извините, данная страна не найдена. Проверьте правильность написания и попробуйте еще раз:\n')
             else:
-                context.user_data['city'] = update.message.text
-                context.user_data['sights'] = sights
-        photo = yandex_maps.create_map(context.user_data['country'] + ',' + context.user_data['city'])
-        reply_keyboard = [['Все верно ✅'], ['Ввести заново ❌']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-        context.bot.send_photo(
-            update.message.chat_id,
-            photo,
-            caption='Ваш выбор.'
-        )
+                reply_keyboard = [['Выбрать случайный город 🏙']]
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+                context.user_data['country'] = update.message.text
+                update.message.reply_text(
+                    'Принято, теперь введите город:\n', reply_markup=markup)
+            return 3
+        else:
+            if not context.user_data['city'] or context.user_data['city'] != update.message.text:
+                sights = geohelper.define_toponym('cities', update.message.text, country=context.user_data["country"])
+                if not sights:
+                    update.message.reply_text(
+                        'Извините, в желаемой стране данный город не найден. Проверьте правильность написания и попробуйте еще раз:\n')
+                    return 3
+                else:
+                    context.user_data['city'] = update.message.text
+                    context.user_data['sights'] = sights
+            photo = yandex_maps.create_map(context.user_data['country'] + ',' + context.user_data['city'])
+            reply_keyboard = [['Все верно ✅'], ['Ввести заново ❌']]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            context.bot.send_photo(
+                update.message.chat_id,
+                photo,
+                caption='Отличный выбор!'
+            )
+            update.message.reply_text(
+                f'Проверьте данные на билете: {context.user_data["country"]}, {context.user_data["city"]}.',
+                reply_markup=markup)
+    except yandex_maps.SightsError:
         update.message.reply_text(
-            f'Отлично! Проверьте данные на билете: {context.user_data["country"]}, {context.user_data["city"]}.',
-            reply_markup=markup)
+            'Извините, в данном городе я не нашел ничего интересного! Выберите, пожалуйста, другой.\n')
+        return 3
+    except (ConnectionError, TimeoutError):
+        stop(update, context, error=True)
     return 4
 
 
@@ -149,8 +159,7 @@ def find_video(update, context):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_reply_markup(markup)
 
-    except Exception as error:
-        print(error)
+    except (ConnectionError, TimeoutError):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             'Извините, проблемы с соединением на сервере.', reply_markup=markup)
@@ -184,7 +193,7 @@ def find_sights(update, context):
             photo=need_url, caption=description)
         query.message.reply_text('Вот и наша экскурсионная карта!\n'
                                  'Какое из мест хотите посетить?', reply_markup=markup)
-    except Exception as e:
+    except (ConnectionError, TimeoutError):
         keyboard = [[InlineKeyboardButton('Вернуться назад', callback_data='return')]]
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
@@ -195,7 +204,6 @@ def find_sights(update, context):
 def generate_sights_map(context):
     topomym = context.user_data['country'] + ',' + context.user_data['city']
     context.user_data['sights'] = yandex_maps.create_sights(topomym)
-    print(context.user_data['sights'])
 
 
 def alone_sight(update, context):
@@ -214,6 +222,11 @@ def alone_sight(update, context):
     try:
         query.message.reply_photo(
             photo=url_place, caption=caption)
+    except (ConnectionError, TimeoutError):
+        keyboard = [[InlineKeyboardButton('Вернуться назад', callback_data='return')]]
+        markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
+                                reply_markup=markup)
     except Exception:
         query.message.reply_text(caption)
     keyboard = [[] for _ in range(2)]
@@ -226,9 +239,11 @@ def alone_sight(update, context):
     query.message.reply_text('Куда едем дальше?', reply_markup=markup)
 
 
-def stop(update, context):
-    update.message.reply_text(
-        'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!')
+def stop(update, context, error=None):
+    text = 'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!'
+    if error:
+        text = 'Произошла ошибка с соединением с сервером. Попробуйте позже.'
+    update.message.reply_text(text)
     return ConversationHandler.END
 
 
@@ -247,15 +262,14 @@ def main():
         states={
             1: [MessageHandler(Filters.text, wait_data, pass_user_data=True),
                 ],
-            2: [MessageHandler(Filters.text('Выбрать случайную страну 🏞'), random_place, pass_user_data=True),
+            2: [MessageHandler(Filters.regex(r'(лучайн)'), random_place, pass_user_data=True),
                 MessageHandler(Filters.text, choose_place, pass_user_data=True)
                 ],
-            3: [MessageHandler(Filters.text('Поменять 🔄'), random_place, pass_user_data=True),
-                MessageHandler(Filters.text('Выбрать случайный город 🏙'), random_place, pass_user_data=True),
+            3: [MessageHandler(Filters.regex(r'(оменять|случайн)'), random_place, pass_user_data=True),
                 MessageHandler(Filters.text, choose_place, pass_user_data=True)
                 ],
-            4: [MessageHandler(Filters.text('Все верно ✅'), lets_go, pass_user_data=True),
-                MessageHandler(Filters.text('Ввести заново ❌'), wait_data, pass_user_data=True),
+            4: [MessageHandler(Filters.regex(r'(Верно|Да|верно|да)'), lets_go, pass_user_data=True),
+                MessageHandler(Filters.text(r'(Заново|Нет|заново|нет)'), wait_data, pass_user_data=True),
                 ],
             5: [CallbackQueryHandler(wait_data, pattern='return', pass_user_data=True),
                 CallbackQueryHandler(find_video, pattern='0', pass_user_data=True),
