@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRe
 from my_project import yandex_maps, video_module, geohelper
 
 REQUEST_KWARGS = {
-    'proxy_url': 'socks5://5.133.194.171:12951',  # Адрес прокси сервера
+    'proxy_url': 'socks5://148.251.234.93:1080',  # Адрес прокси сервера
     # Опционально, если требуется аутентификация:
     'urllib3_proxy_kwargs': {
         'assert_hostname': 'False',
@@ -33,6 +33,7 @@ def wait_data(update, context):
     context.user_data['country'] = None
     context.user_data['city'] = None
     context.user_data['sights'] = None
+    context.user_data['videos'] = None
 
     reply_keyboard = [['Выбрать случайную страну 🏞']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
@@ -88,8 +89,14 @@ def choose_place(update, context):
             else:
                 context.user_data['city'] = update.message.text
                 context.user_data['sights'] = sights
+        photo = yandex_maps.create_map(context.user_data['country'] + ',' + context.user_data['city'])
         reply_keyboard = [['Все верно ✅'], ['Ввести заново ❌']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        context.bot.send_photo(
+            update.message.chat_id,
+            photo,
+            caption='Ваш выбор.'
+        )
         update.message.reply_text(
             f'Отлично! Проверьте данные на билете: {context.user_data["country"]}, {context.user_data["city"]}.',
             reply_markup=markup)
@@ -97,7 +104,7 @@ def choose_place(update, context):
 
 
 def lets_go(update, context):
-    keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='video'),
+    keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='0'),
                  InlineKeyboardButton("Фото-экскурсия", callback_data='photo')],
                 [InlineKeyboardButton("Поменять пункт назначения", callback_data='return')]]
     markup = InlineKeyboardMarkup(keyboard)
@@ -119,13 +126,20 @@ def lets_go(update, context):
 def find_video(update, context):
     query = update.callback_query
     query.answer()
-    topomym = context.user_data['city']
     keyboard = [[InlineKeyboardButton("Вернуться назад", callback_data='return')]]
     try:
-        videos = video_module.search_video(topomym)
+        if context.user_data['videos'] != [] and not context.user_data['videos']:
+            context.user_data['videos'] = video_module.search_video(context.user_data["city"],
+                                                                    context.user_data["country"])
+        videos = context.user_data['videos']
+        print('v', videos)
         if not videos:
             query.edit_message_text(
-                f'Извините, видео-экскурсий по городу {update.message.text} не найдено. '
+                f'Извините, видео-экскурсий по городу {context.user_data["city"]} не найдено. '
+            )
+        else:
+            query.edit_message_text(
+                videos[int(query.data)]
             )
         if int(query.data) > 0:
             keyboard.append([InlineKeyboardButton("Предыдущее  видео", callback_data=str(int(query.data) - 1))])
@@ -133,10 +147,8 @@ def find_video(update, context):
             keyboard.append(
                 [InlineKeyboardButton("Следующее видео", callback_data=str(int(query.data) + 1))])
         markup = InlineKeyboardMarkup(keyboard)
-        query.edit_message_text(
-            videos[int(query.data)],
-            reply_markup=markup
-        )
+        query.edit_message_reply_markup(markup)
+
     except Exception as error:
         print(error)
         markup = InlineKeyboardMarkup(keyboard)
@@ -149,8 +161,11 @@ def find_sights(update, context):
     query = update.callback_query
     query.answer()
     if query.data == 'new':
-        generate_sights_map()
-        print(context.user_data['sights'])
+        if len(context.user_data['sights'][1]) < 5:
+            query.message.reply_text(
+                f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено"')
+        else:
+            generate_sights_map(context)
     try:
         need_url, sights = context.user_data['sights']
         description = '\n'.join(
@@ -159,8 +174,8 @@ def find_sights(update, context):
         keyboard = [[] for _ in range(2)]
         for button in range(1, len(sights) + 1):
             keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
-        keyboard[1].append([InlineKeyboardButton('Вернуться назад', callback_data='return')])
-        keyboard[1].append([InlineKeyboardButton('Сгенерировать новую карту', callback_data='new')])
+        keyboard[1].extend([InlineKeyboardButton('Вернуться назад', callback_data='return'),
+                            InlineKeyboardButton('Сгенерировать новую карту', callback_data='new')])
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             'Посмотрим...'
@@ -170,15 +185,17 @@ def find_sights(update, context):
         query.message.reply_text('Вот и наша экскурсионная карта!\n'
                                  'Какое из мест хотите посетить?', reply_markup=markup)
     except Exception as e:
-        print(e)
+        keyboard = [[InlineKeyboardButton('Вернуться назад', callback_data='return')]]
+        markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
+                                reply_markup=markup)
     return 7
 
 
-def generate_sights_map(update, context):
-    query = update.callback_query
-    query.answer()
+def generate_sights_map(context):
     topomym = context.user_data['country'] + ',' + context.user_data['city']
     context.user_data['sights'] = yandex_maps.create_sights(topomym)
+    print(context.user_data['sights'])
 
 
 def alone_sight(update, context):
@@ -208,7 +225,7 @@ def alone_sight(update, context):
 
 def stop(update, context):
     update.message.reply_text(
-        'Спасибо за чудесное путшествие! Не забудьте свой багаж и возвращайтесь в любое время!')
+        'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!')
     return ConversationHandler.END
 
 

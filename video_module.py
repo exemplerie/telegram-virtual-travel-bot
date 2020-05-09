@@ -5,18 +5,26 @@ import googleapiclient.discovery
 from my_project.translater import translate_text
 
 
-def search_video(city):
+def search_video(city, country):
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
     api_version = "v3"
-    DEVELOPER_KEY = "AIzaSyCt0LbvrjuKTVd7VCYlwC8N9fdvru-IJH4"
+    DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
 
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, developerKey=DEVELOPER_KEY)
 
-    channels = ['UCH4KR4_UxYIfQDTHaPeMWtg', 'UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ',
-                'UCGaOvAFinZ7BCN_FDmw74fQ', 'UCADzhMQYAKOKblJy0nXN55A']
+    channels = ['UCH4KR4_UxYIfQDTHaPeMWtg']
+    if country.lower() == 'россия':
+        channels.append('UCADzhMQYAKOKblJy0nXN55A')
+        if city.lower() in ['москва', 'санкт-петербург']:
+            channels.append('UCGaOvAFinZ7BCN_FDmw74fQ')
+    else:
+        channels.extend(['UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ', 'UCGaOvAFinZ7BCN_FDmw74fQ'])
+
+    print(channels)
+
     youtube_server = "https://www.youtube.com/watch?v="
     urls = []
 
@@ -43,5 +51,4 @@ def search_video(city):
 
     return urls
 
-
-print(search_video('осло'))
+# print(search_video('осло'))
