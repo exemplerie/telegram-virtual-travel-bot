@@ -2,6 +2,7 @@ import logging
 from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
+from telegram.error import BadRequest, RetryAfter, TimedOut, Unauthorized, NetworkError
 from my_project import yandex_maps, video_module, geohelper
 
 logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -117,7 +118,7 @@ def choose_place(update, context):
         update.message.reply_text(
             'Извините, в данном городе я не нашел ничего интересного! Выберите, пожалуйста, другой.\n')
         return PLACE_CHOICE
-    except (ConnectionError, TimeoutError):
+    except (ConnectionError, TimeoutError, NetworkError):
         stop(update, context, error_was=True)
     return CONFIRMATION
 
@@ -156,8 +157,7 @@ def find_video(update, context):
             query.edit_message_text(
                 f'Извините, видео-экскурсий по городу {context.user_data["city"]} не найдено. '
             )
-            logger.info("No video about %s, %s for %s request", update.message.from_user.first_name, context.user_data['country'],
-                        context.user_data['city'])
+            logger.info("No video about %s", context.user_data['city'])
         else:
             query.edit_message_text(
                 videos[int(query.data)]
@@ -206,7 +206,7 @@ def find_sights(update, context):
             photo=need_url, caption=description)
         query.message.reply_text('Вот и наша экскурсионная карта!\n'
                                  'Какое из мест хотите посетить?', reply_markup=markup)
-    except (ConnectionError, TimeoutError):
+    except (ConnectionError, TimeoutError, telegram.error.TimedOut):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
                                 reply_markup=markup)
@@ -272,7 +272,7 @@ def error(update, context):
 
 def main():
     # Создаём объект updater.
-    updater = Updater('1125322487:AAFql3B0ov5mMDFdUrFQIUJDAhfw7XR3wLw', use_context=True,
+    updater = Updater('1224664190:AAF3YUI0BmakawB8ewGTiWyGPJpCjaLhhpA', use_context=True,
                       request_kwargs=REQUEST_KWARGS)
     # Получаем из него диспетчер сообщений.
     dp = updater.dispatcher
