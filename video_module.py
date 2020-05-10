@@ -13,7 +13,7 @@ def search_video(city, country):
     DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
 
     youtube = googleapiclient.discovery.build(
-        api_service_name, api_version, developerKey=DEVELOPER_KEY)
+        api_service_name, api_version, cache_discovery=False, developerKey=DEVELOPER_KEY)
 
     channels = ['UCH4KR4_UxYIfQDTHaPeMWtg']
     if country.lower() == 'россия':

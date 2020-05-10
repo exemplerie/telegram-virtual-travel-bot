@@ -1,7 +1,13 @@
+import logging
 from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
 from my_project import yandex_maps, video_module, geohelper
+
+logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 REQUEST_KWARGS = {
     'proxy_url': 'socks5://148.251.234.93:1080',  # Адрес прокси сервера
@@ -19,6 +25,7 @@ BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_
 def start_command(update, context):
     reply_keyboard = [["Взлетаем!✈"]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    logger.info("User %s started the conversation.", update.message.from_user.first_name)
     update.message.reply_text(
         'Привет! 👋\n'
         'Я - бот виртуальных путешествий. Все мы сейчас в непростой ситуации, '
@@ -61,7 +68,7 @@ def random_place(update, context):
             context.user_data['city'] = generated_place
             context.user_data['sights'] = sights
         except (ConnectionError, TimeoutError):
-            stop(update, context, error=True)
+            stop(update, context, error_was=True)
     reply_keyboard = [[generated_place, 'Поменять 🔄']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
@@ -99,17 +106,19 @@ def choose_place(update, context):
             context.bot.send_photo(
                 update.message.chat_id,
                 photo,
-                caption='Отличный выбор!'
-            )
+                caption='Отличный выбор!')
             update.message.reply_text(
                 f'Проверьте данные на билете: {context.user_data["country"]}, {context.user_data["city"]}.',
                 reply_markup=markup)
+
+            logger.info("Place choice of %s: %s, %s", update.message.from_user.first_name, context.user_data['country'],
+                        context.user_data['city'])
     except yandex_maps.SightsError:
         update.message.reply_text(
             'Извините, в данном городе я не нашел ничего интересного! Выберите, пожалуйста, другой.\n')
         return PLACE_CHOICE
     except (ConnectionError, TimeoutError):
-        stop(update, context, error=True)
+        stop(update, context, error_was=True)
     return CONFIRMATION
 
 
@@ -147,6 +156,8 @@ def find_video(update, context):
             query.edit_message_text(
                 f'Извините, видео-экскурсий по городу {context.user_data["city"]} не найдено. '
             )
+            logger.info("No video about %s, %s for %s request", update.message.from_user.first_name, context.user_data['country'],
+                        context.user_data['city'])
         else:
             query.edit_message_text(
                 videos[int(query.data)]
@@ -163,28 +174,30 @@ def find_video(update, context):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             'Извините, проблемы с соединением на сервере.', reply_markup=markup)
+        error(update, context)
     return VIDEO_TRIP
 
 
 def find_sights(update, context):
     query = update.callback_query
     query.answer()
+    keyboard = [[] for _ in range(2)]
+    keyboard[1].append(InlineKeyboardButton('Вернуться назад', callback_data='return'))
     if query.data == 'new':
         if len(context.user_data['sights'][1]) < 5:
+            markup = InlineKeyboardMarkup(keyboard)
             query.message.reply_text(
-                f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено.')
+                f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено.',
+                reply_markup=markup)
         else:
             generate_sights_map(context)
     try:
         need_url, sights = context.user_data['sights']
         description = '\n'.join(
             [str(x[0]) + '  -   "' + x[1]['name'] + '"\n' for x in sights.items()])
-
-        keyboard = [[] for _ in range(2)]
         for button in range(1, len(sights) + 1):
             keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
-        keyboard[1].extend([InlineKeyboardButton('Вернуться назад', callback_data='return'),
-                            InlineKeyboardButton('Сгенерировать новую карту', callback_data='new')])
+        keyboard[1].append(InlineKeyboardButton('Сгенерировать новую карту', callback_data='new'))
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             'Посмотрим...'
@@ -194,10 +207,10 @@ def find_sights(update, context):
         query.message.reply_text('Вот и наша экскурсионная карта!\n'
                                  'Какое из мест хотите посетить?', reply_markup=markup)
     except (ConnectionError, TimeoutError):
-        keyboard = [[InlineKeyboardButton('Вернуться назад', callback_data='return')]]
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
                                 reply_markup=markup)
+        error(update, context)
     except Exception as e:
         print(e, type(e))
     return PHOTO_TRIP
@@ -229,7 +242,9 @@ def alone_sight(update, context):
         markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text('Извините, проблемы с соединением на сервере. Попробуйте еще раз позже.',
                                 reply_markup=markup)
-    except Exception:
+        error(update, context)
+    except Exception as e:
+        print(e)
         query.message.reply_text(caption)
     keyboard = [[] for _ in range(2)]
     keyboard[1].append(InlineKeyboardButton('Вернуться назад', callback_data='return'))
@@ -241,12 +256,18 @@ def alone_sight(update, context):
     query.message.reply_text('Куда едем дальше?', reply_markup=markup)
 
 
-def stop(update, context, error=None):
+def stop(update, context, error_was=None):
     text = 'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!'
-    if error:
-        text = 'Произошла ошибка с соединением с сервером. Попробуйте позже.'
+    if error_was:
+        error(update, context)
+        text = 'Произошла ошибка соединения с сервером. Попробуйте позже.'
     update.message.reply_text(text)
+    logger.info("User %s stopped the conversation.", update.message.from_user.first_name)
     return ConversationHandler.END
+
+
+def error(update, context):
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 
 def main():
@@ -289,6 +310,7 @@ def main():
     )
 
     dp.add_handler(conv_handler)
+    dp.add_error_handler(error)
     # Запускаем цикл приема и обработки сообщений.
     updater.start_polling()
 
