@@ -4,14 +4,14 @@ import os
 import googleapiclient.discovery
 from my_project.translater import translate_text
 
+DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
 
-def search_video(city, country):
+
+def search_video(city, country):  # поиск видео о городе по проверенным каналам путешественников
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     api_service_name = "youtube"
     api_version = "v3"
-    DEVELOPER_KEY = "AIzaSyCmJGcke-Jmql9C1NBxphrsk7K-9GP42wg"
-
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, cache_discovery=False, developerKey=DEVELOPER_KEY)
 
@@ -44,7 +44,7 @@ def search_video(city, country):
 
             if any([names_of_city[0] in video_name, names_of_city[1] in video_name,
                     names_of_city[0] in video_info, names_of_city[1] in video_info]):
-                id = video["id"]["videoId"]
-                urls.append(youtube_server + id)
+                video_id = video["id"]["videoId"]
+                urls.append(youtube_server + video_id)
 
     return urls

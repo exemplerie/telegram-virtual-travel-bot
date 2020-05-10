@@ -6,7 +6,7 @@ class SightsError(Exception):
     pass
 
 
-def create_sights(place):
+def create_sights(place):  # создание карты-маршрута с помощью API поиска по организациям
     toponym = geocode_search(place)
     toponym_point = [float(x) for x in toponym["Point"]["pos"].split(" ")]
 
@@ -28,16 +28,16 @@ def create_sights(place):
     for kind_sights in range(len(sights)):
         search_params["text"] = sights[kind_sights]
         response = requests.get(search_api_server, params=search_params)
-        print(response.url)
         json_response = response.json()
         organizations = json_response.get("features")
         if not organizations:
             continue
         all_points.extend(organizations)
 
-    if not all_points:
+    if not all_points:  # если нет ни одной достопримечательности
         raise SightsError
 
+    # выбор случайных мест, фильтрация на случай повторений на одной карте
     if len(all_points) <= 5:
         need_points = []
         for x in all_points:
@@ -68,28 +68,32 @@ def create_sights(place):
     }
     map_api_server = "http://static-maps.yandex.ru/1.x/"
     response = requests.get(map_api_server, params=map_params)
-    print(total_points)
     return response.url, total_points
 
 
-def create_map(place):  # загружаем в файл
-    try:
-        toponym = geocode_search(place)
-        toponym_point = [float(x) for x in toponym["Point"]["pos"].split(" ")]
+def create_map(place):  # создание карты для представления выбранного города, static API
+    toponym = geocode_search(place)
+    toponym_point = [float(x) for x in toponym["Point"]["pos"].split(" ")]
 
-        lower_corner = toponym['boundedBy']['Envelope']['lowerCorner'].split()
-        upper_corner = toponym['boundedBy']['Envelope']['upperCorner'].split()
-        width = abs(float(upper_corner[0]) - float(lower_corner[0])) / 2.0
-        height = abs(float(upper_corner[1]) - float(lower_corner[1])) / 2.0
-        need_spn = f"{width},{height}"
+    lower_corner = toponym['boundedBy']['Envelope']['lowerCorner'].split()
+    upper_corner = toponym['boundedBy']['Envelope']['upperCorner'].split()
+    width = abs(float(upper_corner[0]) - float(lower_corner[0])) / 2.0
+    height = abs(float(upper_corner[1]) - float(lower_corner[1])) / 2.0
+    need_spn = f"{width},{height}"
 
-        photo_map = static_search(toponym_point, need_spn)
-        return photo_map
-    except Exception:
-        return 'error'
+    map_api_server = "http://static-maps.yandex.ru/1.x/"
+    map_params = {
+        'll': "{0},{1}".format(*toponym_point),
+        'spn': need_spn,
+        "l": 'sat,skl'
+    }
+    response = requests.get(map_api_server, params=map_params)
+    photo_map = response.url
+
+    return photo_map
 
 
-def geocode_search(toponym_to_find):  # находим место
+def geocode_search(toponym_to_find):  # нахождение места
     geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
     geocoder_params = {
         "apikey": "40d1649f-0493-4b70-98ba-98533de7710b",
@@ -99,14 +103,3 @@ def geocode_search(toponym_to_find):  # находим место
     json_response = response.json()
     return json_response["response"]["GeoObjectCollection"][
         "featureMember"][0]["GeoObject"]
-
-
-def static_search(coords, spn):  # создаем карту
-    map_api_server = "http://static-maps.yandex.ru/1.x/"
-    map_params = {
-        'll': "{0},{1}".format(*coords),
-        'spn': spn,
-        "l": 'sat,skl'
-    }
-    response = requests.get(map_api_server, params=map_params)
-    return response.url

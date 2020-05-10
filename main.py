@@ -1,8 +1,8 @@
 import logging
-from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CommandHandler, ConversationHandler, \
+from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove, ReplyKeyboardMarkup
-from telegram.error import BadRequest, RetryAfter, TimedOut, Unauthorized, NetworkError, TelegramError
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram.error import BadRequest, TelegramError
 from my_project import yandex_maps, video_module, geohelper
 
 logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,15 +20,17 @@ REQUEST_KWARGS = {
     #     'password': 'password'
     # }
 }
+# использующиеся состояния
 BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_TRIP = range(7)
 
 
-def help(update, context):
+def help(update, context):  # обработка команды помощи
     update.message.reply_text('Как мной пользоваться?\n'
-                              'Все очень просто, напиши команду /start, выбери интересующую точку планеты и исследуй ее!')
+                              'Все очень просто, напиши команду /start, выбери интересующую точку планеты и исследуй '
+                              'ее!\n Для выхода используй команду /stop.')
 
 
-def start_command(update, context):
+def start_command(update, context):  # обработка стартовой команды
     reply_keyboard = [["Взлетаем!✈"]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     logger.info("User %s started the conversation.", update.message.from_user.first_name)
@@ -42,7 +44,7 @@ def start_command(update, context):
     return BEGINNING
 
 
-def wait_data(update, context):
+def wait_data(update, context):  # обновление данных пользователя (при выборе нового места)
     context.user_data['country'] = None
     context.user_data['city'] = None
     context.user_data['sights'] = None
@@ -62,10 +64,10 @@ def wait_data(update, context):
         query.answer()
         query.edit_message_text('Возвращаемся!')
         query.message.reply_text('Пожалуйста, введите желаемую страну:', reply_markup=markup)
-
     return NEW_DATA
 
 
+# выборка случайного места (страна - из самых заполненных городами, город по выбранной стране)
 def random_place(update, context):
     generated_place = None
     if not context.user_data["country"]:
@@ -85,6 +87,8 @@ def random_place(update, context):
     return PLACE_CHOICE
 
 
+# проверка выбранного места (страна и город должны находится в базе данных,
+# город должен иметь хотя бы одно интересное место в Яндекс.Организациях)
 def choose_place(update, context):
     try:
         if not context.user_data["country"]:
@@ -116,17 +120,17 @@ def choose_place(update, context):
 
             logger.info("Place choice of %s: %s, %s", update.message.from_user.first_name, context.user_data['country'],
                         context.user_data['city'])
-    except yandex_maps.SightsError:
+    except yandex_maps.SightsError:  # не нашлось ни одной достопримечательности
         update.message.reply_text(
             'Извините, в данном городе я не нашел ничего интересного! Выберите, пожалуйста, другой.\n')
         return PLACE_CHOICE
-    except (Exception, TelegramError) as e:
-        print(e)
+    except (Exception, TelegramError):
         error(update, context)
         return CONFIRMATION
     return CONFIRMATION
 
 
+# выбор интерактивных функций
 def lets_go(update, context):
     keyboard = [[InlineKeyboardButton("Видео-экскурсия", callback_data='0'),
                  InlineKeyboardButton("Фото-экскурсия", callback_data='photo')],
@@ -147,6 +151,7 @@ def lets_go(update, context):
     return TRIP_CHOICE
 
 
+# поиск видео по API youtube
 def find_video(update, context):
     query = update.callback_query
     query.answer()
@@ -156,7 +161,6 @@ def find_video(update, context):
             context.user_data['videos'] = video_module.search_video(context.user_data["city"],
                                                                     context.user_data["country"])
         videos = context.user_data['videos']
-        print('v', videos)
         if not videos:
             query.edit_message_text(
                 f'Извините, видео-экскурсий по городу {context.user_data["city"]} не найдено. '
@@ -175,16 +179,20 @@ def find_video(update, context):
         query.edit_message_reply_markup(markup)
     except (Exception, TelegramError):
         error(update, context)
+        return VIDEO_TRIP
     return VIDEO_TRIP
 
 
+# представление карты-маршрута по достопримечательностям; изначальная создается при выборе места (для
+# минимального количества запросов к API карт), обновляется при запросе пользователем соответствующей функции.
+# карта и ее точки хранятся в словаре-данных о пользователе
 def find_sights(update, context):
     query = update.callback_query
     query.answer()
     keyboard = [[] for _ in range(2)]
     keyboard[1].append(InlineKeyboardButton('Вернуться назад', callback_data='return'))
-    if query.data == 'new':
-        if len(context.user_data['sights'][1]) < 5:
+    if query.data == 'new':  # обновление карты
+        if len(context.user_data['sights'][1]) < 5:  # если невозможно добавить новые точки
             markup = InlineKeyboardMarkup(keyboard)
             query.edit_message_text(
                 f'К сожалению, новых интересных мест в городе {context.user_data["city"]} не найдено.',
@@ -217,11 +225,12 @@ def find_sights(update, context):
     return PHOTO_TRIP
 
 
-def generate_sights_map(context):
+def generate_sights_map(context):  # генератор карты достопримечательностей
     topomym = context.user_data['country'] + ',' + context.user_data['city']
     context.user_data['sights'] = yandex_maps.create_sights(topomym)
 
 
+# информация о месте (фото, если есть, сайт или ссылка на страницу в яндекс.организациях)
 def alone_sight(update, context):
     query = update.callback_query
     query.answer()
@@ -238,14 +247,14 @@ def alone_sight(update, context):
     keyboard = [[] for _ in range(2)]
     keyboard[1].append(InlineKeyboardButton('Вернуться назад', callback_data='return'))
     keyboard[1].append(InlineKeyboardButton('Сгенерировать новую карту', callback_data='new'))
-    for button in range(1, len(context.user_data["sights"][1]) + 1):
+    for button in range(1, len(context.user_data["sights"][1]) + 1):  # кнопки создаются по оставшимся точкам
         if str(button) != query.data:
             keyboard[0].append(InlineKeyboardButton(str(button), callback_data=str(button)))
     markup = InlineKeyboardMarkup(keyboard)
     try:
         query.message.reply_photo(photo=url_place, caption=caption)
         query.message.reply_text('Куда едем дальше?', reply_markup=markup)
-    except BadRequest:
+    except BadRequest:  # если нет фото
         query.message.reply_text(caption)
         query.message.reply_text('Куда едем дальше?', reply_markup=markup)
     except (Exception, TelegramError) as e:
@@ -253,14 +262,14 @@ def alone_sight(update, context):
         error(update, context)
 
 
-def stop(update, context):
+def stop(update, context):  # обработка выхода из диалога
     text = 'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!'
     update.message.reply_text(text)
     logger.info("User %s stopped the conversation.", update.message.from_user.first_name)
     return ConversationHandler.END
 
 
-def error(update, context):
+def error(update, context):  # обработка ошибок
     logger.warning('Update "%s" caused error "%s"', update, context.error)
     query = update.callback_query
     keyboard = [[InlineKeyboardButton('Вернуться назад', callback_data='error_return')]]
@@ -280,8 +289,6 @@ def main():
     # Получаем из него диспетчер сообщений.
     dp = updater.dispatcher
 
-    # updater.dispatcher.add_handler(CommandHandler('start', start_command))
-    # updater.dispatcher.add_handler(CallbackQueryHandler(button))
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start_command)],
 
@@ -305,14 +312,13 @@ def main():
                           CallbackQueryHandler(lets_go, pattern=r'error_return', pass_user_data=True)
                           ],
             VIDEO_TRIP: [CallbackQueryHandler(lets_go, pattern=r'return|error_return', pass_user_data=True),
-                         CallbackQueryHandler(find_video, pattern='\d', pass_user_data=True)
+                         CallbackQueryHandler(find_video, pattern=r'\d', pass_user_data=True)
                          ],
             PHOTO_TRIP: [CallbackQueryHandler(lets_go, pattern=r'return|error_return', pass_user_data=True),
                          CallbackQueryHandler(find_sights, pattern=r'new|error_return', pass_user_data=True),
-                         CallbackQueryHandler(alone_sight, pattern='\d', pass_user_data=True)
+                         CallbackQueryHandler(alone_sight, pattern=r'\d', pass_user_data=True)
                          ]
         },
-
         fallbacks=[CommandHandler("stop", stop)]
     )
 

@@ -3,7 +3,7 @@ import json
 from my_project import yandex_maps
 
 
-def randon_toponym(kind, country=None):
+def randon_toponym(kind, country=None):  # выбор случайной страны или города
     with open('total.json', "rb") as read_file:
         data = json.load(read_file)
         if kind == 'countries':
@@ -18,7 +18,7 @@ def randon_toponym(kind, country=None):
             return choice, sights
 
 
-def define_toponym(kind, toponym, country=None):
+def define_toponym(kind, toponym, country=None):  # поиск выбранной страны или города по базе
     with open('total.json', "rb") as read_file:
         data = json.load(read_file)
         if kind == 'countries':
@@ -27,6 +27,6 @@ def define_toponym(kind, toponym, country=None):
             if toponym in [str(x) for x in data[country]]:
                 try:
                     sights = yandex_maps.create_sights(country + ',' + toponym)
-                except Exception as e:
+                except Exception:
                     return None
                 return sights
