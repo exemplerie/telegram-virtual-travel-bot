@@ -39,7 +39,12 @@ def create_sights(place):
         raise SightsError
 
     if len(all_points) <= 5:
-        need_points = all_points
+        need_points = []
+        for x in all_points:
+            if not need_points:
+                need_points.append(x)
+            elif x["properties"]["name"] not in [y["properties"]["name"] for y in need_points]:
+                need_points.append(x)
     else:
         need_points = random.choices(all_points, k=5)
         while len(set([x["properties"]["name"] for x in need_points])) < 5:

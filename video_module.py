@@ -21,7 +21,7 @@ def search_video(city, country):
         if city.lower() in ['москва', 'санкт-петербург']:
             channels.append('UCGaOvAFinZ7BCN_FDmw74fQ')
     else:
-        channels.extend(['UClI9aidW3X044NeB4QS-yxw', 'UCh3Rpsdv1fxefE0ZcKBaNcQ', 'UCGaOvAFinZ7BCN_FDmw74fQ'])
+        channels.extend(['UCfQRCH280-EKgPPdIG41FJQ', 'UCh3Rpsdv1fxefE0ZcKBaNcQ', 'UCGaOvAFinZ7BCN_FDmw74fQ'])
 
     youtube_server = "https://www.youtube.com/watch?v="
     urls = []
