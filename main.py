@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+import my_project.config as config
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -279,7 +280,7 @@ def error(update, context):  # обработка ошибок
 
 def main():
     # Создаём объект updater.
-    updater = Updater('1224664190:AAF3YUI0BmakawB8ewGTiWyGPJpCjaLhhpA', use_context=True)
+    updater = Updater(config.BOT_TOKEN, use_context=True)
     # Получаем из него диспетчер сообщений.
     dp = updater.dispatcher
 
