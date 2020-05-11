@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import random
 import json
-from my_project import yandex_maps
+from other_modules import yandex_maps
 
 
 def randon_toponym(kind, country=None):  # выбор случайной страны или города
-    with open('total.json', "rb") as read_file:
+    with open('other_modules/total.json', "rb") as read_file:
         data = json.load(read_file)
         if kind == 'countries':
             countries = sorted(list(data.items()), key=lambda i: len(i[1]), reverse=True)
@@ -20,7 +20,7 @@ def randon_toponym(kind, country=None):  # выбор случайной стр�
 
 
 def define_toponym(kind, toponym, country=None):  # поиск выбранной страны или города по базе
-    with open('total.json', "rb") as read_file:
+    with open('other_modules/total.json', "rb") as read_file:
         data = json.load(read_file)
         if kind == 'countries':
             return toponym in [str(x) for x in data.keys()]

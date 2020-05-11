@@ -2,8 +2,9 @@
 import os
 
 import googleapiclient.discovery
-from my_project.translater import translate_text
-import my_project.config as config
+from other_modules.translater import translate_text
+
+GOOGLE_KEY = os.environ.get('GOOGLE_KEY')
 
 
 def search_video(city, country):  # поиск видео о городе по проверенным каналам путешественников
@@ -12,7 +13,7 @@ def search_video(city, country):  # поиск видео о городе по �
     api_service_name = "youtube"
     api_version = "v3"
     youtube = googleapiclient.discovery.build(
-        api_service_name, api_version, cache_discovery=False, developerKey=config.GOOGLE_KEY)
+        api_service_name, api_version, cache_discovery=False, developerKey=os.environ.get('GOOGLE_KEY'))
 
     channels = ['UCH4KR4_UxYIfQDTHaPeMWtg']
     if country.lower() == 'россия':

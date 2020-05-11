@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import requests
 import random
-import my_project.config as config
+import os
 
+ORGANISATIONS_KEY = os.environ.get('ORGANISATIONS_KEY')
+GEOCODE_KEY = os.environ.get('GEOCODE_KEY')
 
 class SightsError(Exception):
     pass
@@ -13,7 +15,7 @@ def create_sights(place):  # создание карты-маршрута с п�
     toponym_point = [float(x) for x in toponym["Point"]["pos"].split(" ")]
 
     search_api_server = "https://search-maps.yandex.ru/v1/"
-    api_key = config.ORGANISATIONS_KEY
+    api_key = ORGANISATIONS_KEY
     address_ll = "{0},{1}".format(*toponym_point)
 
     sights = ['достопримечательность', 'памятник', 'музей', 'галерея']
@@ -98,7 +100,7 @@ def create_map(place):  # создание карты для представл�
 def geocode_search(toponym_to_find):  # нахождение места
     geocoder_api_server = "http://geocode-maps.yandex.ru/1.x/"
     geocoder_params = {
-        "apikey": config.GEOCODE_KEY,
+        "apikey": GEOCODE_KEY,
         "geocode": toponym_to_find,
         "format": "json"}
     response = requests.get(geocoder_api_server, params=geocoder_params)

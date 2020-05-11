@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import requests
-import my_project.config as config
+import os
 
+TRANSLATER_KEY = os.environ.get('TRANSLATER_KEY')
 
 def language_definition(need_text):  # определение языка для перевода
     url = 'https://translate.yandex.net/api/v1.5/tr.json/detect'
     params = {
-        'key': config.TRANSLATER_KEY,
+        'key': TRANSLATER_KEY,
         'text': need_text
     }
     response = requests.get(url, params)
@@ -22,7 +23,7 @@ def translate_text(need_text):  # перевод на английский ил�
         need_lang = 'ru'
     url = 'https://translate.yandex.net/api/v1.5/tr.json/translate'
     params = {
-        'key': config.TRANSLATER_KEY,
+        'key': TRANSLATER_KEY,
         'text': need_text,
         'lang': need_lang
     }

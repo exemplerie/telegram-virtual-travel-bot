@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 import logging
-import my_project.config as config
+import os
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.error import BadRequest, TelegramError
 from emoji import emojize
-from my_project import yandex_maps, video_module, geohelper
+from other_modules import yandex_maps, video_module, geohelper
 
 logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+BOT_TOKEN = os.environ.get('BOT_TOKEN')
 
 # использующиеся состояния
 BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_TRIP = range(7)
@@ -280,7 +282,7 @@ def error(update, context):  # обработка ошибок
 
 def main():
     # Создаём объект updater.
-    updater = Updater(config.BOT_TOKEN, use_context=True)
+    updater = Updater(BOT_TOKEN, use_context=True)
     # Получаем из него диспетчер сообщений.
     dp = updater.dispatcher
 
