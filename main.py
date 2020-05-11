@@ -10,16 +10,6 @@ logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(le
 
 logger = logging.getLogger(__name__)
 
-REQUEST_KWARGS = {
-    'proxy_url': 'socks5://134.209.27.131:5555',  # Адрес прокси сервера
-    # Опционально, если требуется аутентификация:
-    'urllib3_proxy_kwargs': {
-        'assert_hostname': 'False',
-        'cert_reqs': 'CERT_NONE'}
-    #     'username': 'user',
-    #     'password': 'password'
-    # }
-}
 # использующиеся состояния
 BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_TRIP = range(7)
 
@@ -284,8 +274,7 @@ def error(update, context):  # обработка ошибок
 
 def main():
     # Создаём объект updater.
-    updater = Updater('1224664190:AAF3YUI0BmakawB8ewGTiWyGPJpCjaLhhpA', use_context=True,
-                      request_kwargs=REQUEST_KWARGS)
+    updater = Updater('1224664190:AAF3YUI0BmakawB8ewGTiWyGPJpCjaLhhpA', use_context=True)
     # Получаем из него диспетчер сообщений.
     dp = updater.dispatcher
 
