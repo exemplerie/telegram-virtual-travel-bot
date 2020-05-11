@@ -1,13 +1,14 @@
+# -*- coding: utf-8 -*-
 import logging
 from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, ConversationHandler, \
     CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.error import BadRequest, TelegramError
+from emoji import emojize
 from my_project import yandex_maps, video_module, geohelper
 
 logging.basicConfig(filename="sample.log", format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
-
 logger = logging.getLogger(__name__)
 
 # использующиеся состояния
@@ -15,21 +16,20 @@ BEGINNING, NEW_DATA, PLACE_CHOICE, CONFIRMATION, TRIP_CHOICE, VIDEO_TRIP, PHOTO_
 
 
 def help(update, context):  # обработка команды помощи
-    update.message.reply_text('Как мной пользоваться?\n'
-                              'Все очень просто, напиши команду /start, выбери интересующую точку планеты и исследуй '
-                              'ее!\n Для выхода используй команду /stop.')
+    update.message.reply_text('Как мной пользоваться?\nВсе очень просто, напиши команду /start, выбери '
+                              'интересующую точку планеты и исследуй ее!\n Для выхода используй команду /stop.')
 
 
 def start_command(update, context):  # обработка стартовой команды
-    reply_keyboard = [["Взлетаем!✈"]]
+    reply_keyboard = [[emojize("Взлетаем!:airplane:", use_aliases=True)]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     logger.info("User %s started the conversation.", update.message.from_user.first_name)
-    update.message.reply_text(
-        'Привет! 👋\n'
+    update.message.reply_text(emojize(
+        'Привет! :wave:\n'
         'Я - бот виртуальных путешествий. Все мы сейчас в непростой ситуации, '
-        'когда обычные путешествия стали невозможными 😢.\n' +
-        'Я помогу вам восполнить недостающие ощущения и открою дверь в мир онлайн-путешествий 🌎️!\n',
-        reply_markup=markup
+        'когда обычные путешествия стали невозможными :cry:.\n' +
+        'Я помогу вам восполнить недостающие ощущения и открою дверь в мир онлайн-путешествий :earth_asia:️!\n',
+        use_aliases=True), reply_markup=markup
     )
     return BEGINNING
 
@@ -40,7 +40,7 @@ def wait_data(update, context):  # обновление данных польз�
     context.user_data['sights'] = None
     context.user_data['videos'] = None
 
-    reply_keyboard = [['Выбрать случайную страну 🏞']]
+    reply_keyboard = [[emojize('Выбрать случайную страну :national_park:', use_aliases=True)]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
     query = update.callback_query
@@ -69,7 +69,7 @@ def random_place(update, context):
             context.user_data['sights'] = sights
         except (Exception, TelegramError):
             error(update, context)
-    reply_keyboard = [[generated_place, 'Поменять 🔄']]
+    reply_keyboard = [[generated_place, emojize('Поменять :arrows_counterclockwise:', use_aliases=True)]]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
         f'Что насчет... {generated_place}?', reply_markup=markup
@@ -86,7 +86,7 @@ def choose_place(update, context):
                 update.message.reply_text(
                     'Извините, данная страна не найдена. Проверьте правильность написания и попробуйте еще раз:\n')
             else:
-                reply_keyboard = [['Выбрать случайный город 🏙']]
+                reply_keyboard = [[emojize('Выбрать случайный город :cityscape:', use_aliases=True)]]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
                 context.user_data['country'] = update.message.text
                 update.message.reply_text(
@@ -98,7 +98,8 @@ def choose_place(update, context):
                 context.user_data['city'] = update.message.text
                 context.user_data['sights'] = sights
             photo = yandex_maps.create_map(context.user_data['country'] + ',' + context.user_data['city'])
-            reply_keyboard = [['Все верно ✅'], ['Ввести заново ❌']]
+            reply_keyboard = [[emojize('Все верно :white_check_mark:', use_aliases=True)],
+                              [emojize('Ввести заново :x:', use_aliases=True)]]
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
             context.bot.send_photo(
                 update.message.chat_id,
@@ -128,15 +129,17 @@ def lets_go(update, context):
     markup = InlineKeyboardMarkup(keyboard)
     try:
         update.message.reply_text(
-            f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
-            'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+            emojize('Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
+                    'Мы уже на месте! :man_pilot: Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+                    use_aliases=True),
             reply_markup=markup)
     except (Exception, TelegramError):
         query = update.callback_query
         query.answer()
         query.edit_message_text(
-            f'Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
-            'Мы уже на месте! Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+            emojize('Пожалуйста, пристегните ремни безопасности, приведите спинки кресел в вертикальное положение...\n'
+                    'Мы уже на месте! :man_pilot: Теперь вам предстоит выбрать вид нашего тура по городу на свой вкус:',
+                    use_aliases=True),
             reply_markup=markup)
     return TRIP_CHOICE
 
@@ -207,8 +210,8 @@ def find_sights(update, context):
         )
         query.message.reply_photo(
             photo=need_url, caption=description)
-        query.message.reply_text('Вот и наша экскурсионная карта!\n'
-                                 'Какое из мест хотите посетить?', reply_markup=markup)
+        query.message.reply_text(emojize('Вот и наша экскурсионная карта! :world_map:\n'
+                                         'Какое из мест хотите посетить?', use_aliases=True), reply_markup=markup)
     except (Exception, TelegramError):
         error(update, context)
         return PHOTO_TRIP
@@ -253,7 +256,9 @@ def alone_sight(update, context):
 
 
 def stop(update, context):  # обработка выхода из диалога
-    text = 'Спасибо за чудесное путешествие! Не забудьте свой багаж и возвращайтесь в любое время!'
+    text = emojize(
+        'Спасибо за чудесное путешествие! :luggage:\nНе забудьте свой багаж и возвращайтесь в любое время!',
+        use_aliases=True)
     update.message.reply_text(text)
     logger.info("User %s stopped the conversation.", update.message.from_user.first_name)
     return ConversationHandler.END

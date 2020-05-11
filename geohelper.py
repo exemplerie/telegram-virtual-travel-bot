@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import random
 import json
 from my_project import yandex_maps
